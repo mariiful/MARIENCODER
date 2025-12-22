@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import yaml from 'yaml';
+
+const config = yaml.parse(fs.readFileSync('config.yaml', 'utf8'));
 
 import { lookupByTecci } from './generators/stationLookup.js';
 
@@ -9,7 +12,8 @@ import { generateDaypart } from "./generators/daypartfcst.js";
 import { generateHourly } from "./generators/hourly.js";
 import { generateCurrent } from "./generators/current.js";
 
-const API_KEY = 'e1f10a1e78da46f5b10a1e78da96f525';
+const API_KEY = config.API.WEATHER_API_KEY;
+const units = config.API.UNITS;
 
 const OUTPUT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'output');
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -22,7 +26,7 @@ async function fetchDaily(lat, lon) {
   const params = {
     geocode: `${lat},${lon}`,
     format: "json",
-    units: "e",
+    units: units,
     language: "en-US",
     apiKey: API_KEY
   };
@@ -43,7 +47,7 @@ async function fetchDaypart(lat, lon) {
   const params = {
     geocode: `${lat},${lon}`,
     format: "json",
-    units: "e",
+    units: units,
     language: "en-US",
     apiKey: API_KEY
   };
@@ -62,7 +66,7 @@ async function fetchHourly(lat, lon) {
   const params = {
     geocode: `${lat},${lon}`,
     format: "json",
-    units: "e",
+    units: units,
     language: "en-US",
     apiKey: API_KEY
   };
@@ -79,7 +83,7 @@ async function fetchCurrent(lat, lon) {
   const params = {
     geocode: `${lat},${lon}`,
     format: "json",
-    units: "e",
+    units: units,
     language: "en-US",
     apiKey: API_KEY
   };

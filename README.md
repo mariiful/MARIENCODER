@@ -1,3 +1,4 @@
+![maricom mobile](image.png)
 # FEEL THE POWER OF MARI ENCODER
 This is a data aggregator and provisioner for the Weatherscan IntelliStar system. It fetches the remote config.py file, extracts the needed locations, packages data for each said locations then uploads it via SFTP to the IntelliStar.
 

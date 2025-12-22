@@ -16,6 +16,10 @@ import { generateCurrent } from "./generators/current.js";
 const API_KEY = config.API.WEATHER_API_KEY;
 const units = config.API.UNITS;
 
+const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
+const obs_interest_list = interest_list.obsStation
+const coop_interest_list = interest_list.coopId
+
 const OUTPUT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'output');
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -128,27 +132,26 @@ async function generateForTecci(coopid) {
   const currentPy = generateCurrent(currentData);
 
   fs.writeFileSync(
-    path.join(OUTPUT_DIR, `daily.py`),
+    path.join(OUTPUT_DIR, `${coopid}_daily.py`),
     dailyPy
   );
 
   fs.writeFileSync(
-    path.join(OUTPUT_DIR, `daypart.py`),
+    path.join(OUTPUT_DIR, `${coopid}_daypart.py`),
     daypartPy
   );
 
   fs.writeFileSync(
-    path.join(OUTPUT_DIR, `hourly.py`),
+    path.join(OUTPUT_DIR, `${coopid}_hourly.py`),
     hourlyPy
   );
     fs.writeFileSync(
-    path.join(OUTPUT_DIR, `current.py`),
+    path.join(OUTPUT_DIR, `${coopid}_current.py`),
     currentPy
   );
-
   console.log(`Finished generating products for ${coopid}`);
-  provisionIntelliStar();
 }
+
 
 async function provisionIntelliStar() {
   try {
@@ -162,12 +165,15 @@ async function provisionIntelliStar() {
   }
 }
 
-const coopid = process.argv[2];
-if (!coopid) {
-  console.error('Usage: node generator.js <COOPID>');
-  process.exit(1);
+function mainLoop() {
+  console.log("Starting generation for forecast products...");
+  for (const coopid of coop_interest_list) {
+    generateForTecci(coopid).catch(err => {
+      console.error(`Error generating for COOP ID ${coopid}:`, err);
+    });
+  }
+
+  provisionIntelliStar();
 }
 
-generateForTecci(coopid).catch(err => {
-  console.error('Generator failed:', err);
-});
+mainLoop();

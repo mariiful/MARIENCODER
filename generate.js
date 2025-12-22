@@ -2,10 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import yaml from 'yaml';
-import exec from 'child_process';
+import exec, { ChildProcess } from 'child_process';
 import os from 'os';
 
 const config = yaml.parse(fs.readFileSync('config.yaml', 'utf8'));
+
+let pythonPrefix;
+  if (os.platform() === 'win32') {
+    pythonPrefix = 'py'
+  } else {
+    pythonPrefix = 'python3'
+  }
+
+exec.execSync(`${pythonPrefix} ./fetch_remote_config.py`, { stdio: 'inherit' });
 
 import { lookupByTecci } from './generators/stationLookup.js';
 
@@ -16,9 +25,10 @@ import { generateCurrent } from "./generators/current.js";
 
 const API_KEY = config.API.WEATHER_API_KEY;
 const units = config.API.UNITS;
+const DATA_INTERVAL_MINUTES = config.SYSTEM.DATA_MINUTE_INTERVAL;
 
 const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
-const obs_interest_list = interest_list.obsStation
+//const obs_interest_list = interest_list.obsStation
 const coop_interest_list = interest_list.coopId
 
 const OUTPUT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'output');
@@ -155,12 +165,7 @@ async function generateForTecci(coopid) {
 
 
 async function provisionIntelliStar() {
-  let pythonPrefix;
-  if (os.platform() === 'win32') {
-    pythonPrefix = 'py'
-  } else {
-    pythonPrefix = 'python3'
-  }
+
   try {
     console.log("Starting provisioning to IntelliStar...");
     exec.execSync(`${pythonPrefix} provision.py`, { stdio: 'inherit' });
@@ -183,4 +188,32 @@ function mainLoop() {
   provisionIntelliStar();
 }
 
-mainLoop();
+function countdown(seconds) {
+  return new Promise((resolve) => {
+    let remaining = seconds;
+    
+    const interval = setInterval(() => {
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      process.stdout.write(`\rNext update in: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} `);
+      
+      remaining--;
+      
+      if (remaining < 0) {
+        clearInterval(interval);
+        process.stdout.write('\r                              \r');
+        resolve();
+      }
+    }, 1000);
+  });
+}
+
+async function runLoop() {
+  while (true) {
+    mainLoop();
+    console.log(`\nWaiting ${DATA_INTERVAL_MINUTES} minutes until next update...`);
+    await countdown(DATA_INTERVAL_MINUTES * 60);
+  }
+}
+
+runLoop();

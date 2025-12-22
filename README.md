@@ -9,3 +9,9 @@ Much like GIT, the name MARI can mean many things, mood permitting:
 
  # Installation
 MARI ENCODER uses Node.JS and Python. A relatively new version of Node is recommended for ESM module imports. For Python, Paramiko version 3.5.1 or lower is REQUIRED because newer versions will not negotiate with newer SSH algorithms used on the IntelliStar's FreeBSD installation.
+
+To install dependencies for node:
+
+```npm i```
+
+Then, install dependencies for Python:

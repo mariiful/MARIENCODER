@@ -18,7 +18,7 @@ import twccommon
 import time
 import twc.dsmarshal as dsm
 
-#areaList = wxdata.getUGCInterestList('${location}', 'coopId')
+areaList = wxdata.getUGCInterestList('${location}', 'coopId')
 #twccommon.Log.info(areaList)
 
 twccommon.Log.info("MARI ENCODER - Daypart forecast is being sent.")

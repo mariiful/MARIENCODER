@@ -3,6 +3,7 @@ import path from 'path';
 import axios from 'axios';
 import yaml from 'yaml';
 import exec from 'child_process';
+import os from 'os';
 
 const config = yaml.parse(fs.readFileSync('config.yaml', 'utf8'));
 
@@ -154,9 +155,15 @@ async function generateForTecci(coopid) {
 
 
 async function provisionIntelliStar() {
+  let pythonPrefix;
+  if (os.platform() === 'win32') {
+    pythonPrefix = 'py'
+  } else {
+    pythonPrefix = 'python3'
+  }
   try {
     console.log("Starting provisioning to IntelliStar...");
-    exec.execSync('python3 provision.py', { stdio: 'inherit' });
+    exec.execSync(`${pythonPrefix} provision.py`, { stdio: 'inherit' });
     console.log("Provisioning completed successfully.");
   } catch (error) {
     console.error("hol up twin")

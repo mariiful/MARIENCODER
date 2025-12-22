@@ -25,7 +25,7 @@ for area in areaList:
     b.windChill = ${input.temperatureWindChill || 'None'}
     b.pressureTendency = 2
     
-    # wxdata.setDailyRec(area, b, ${input.validTimeUTC})
+    #wxdata.setDailyRec(area, b, ${input.validTimeUtc})
     wxdata.setData('T71866000', 'obs', b, ${input.expirationTimeUtc})
     twccommon.Log.info("MARI ENCODER - Current Conditions data set for " + area)
     `;

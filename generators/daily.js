@@ -11,20 +11,17 @@ export function generateDaily(input) {
     let keyTime = Math.floor(midnightLocal.getTime() / 1000);
 
     console.log(new Date(keyTime * 1000).toLocaleString(), fcstDate.toLocaleString(), hour);
-    
-    // Logically determine 'rem' based on current time in the forecast timezone
+
     let rem = 1;
 
-    // Get daypart data for icons (alternates day/night)
     const daypartIcons = input.daypart?.[0]?.iconCodeExtend || [];
 
-    // Python code header
     let data = `
 import twccommon
 import time
 import twc.dsmarshal as dsm
 
-#areaList = wxdata.getUGCInterestList('${input.location}', 'coopId')
+areaList = wxdata.getUGCInterestList('${input.location}', 'coopId')
 
 twccommon.Log.info("MARI ENCODER - Daily Forecast is being sent")
 
@@ -32,13 +29,12 @@ keyTime = ${keyTime}
 print(keyTime)
 `;
 
-    // Iterate through the days (using dayOfWeek array length)
     const numDays = input.dayOfWeek?.length || 0;
     for (let i = 0; i < numDays; i++) {
         const num = i + 1;
         const maxTemp = input.temperatureMax?.[i];
         const minTemp = input.temperatureMin?.[i];
-        // Daypart icons alternate: index 0=day1-day, 1=day1-night, 2=day2-day, 3=day2-night, etc.
+
         const dayIcon = daypartIcons[i * 2];
         const nightIcon = daypartIcons[i * 2 + 1];
 

@@ -15,6 +15,7 @@ To install dependencies for node:
 ```npm i```
 
 Then, install dependencies for Python:
+
 ``` pip install -r requirements.txt```
 
 # Contributing

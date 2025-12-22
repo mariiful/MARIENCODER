@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import yaml from 'yaml';
-import exec, { ChildProcess } from 'child_process';
+import exec from 'child_process';
 import os from 'os';
 import { fileURLToPath } from 'url';
 
@@ -179,19 +179,24 @@ async function provisionIntelliStar() {
   } catch (error) {
     console.error("hol up twin")
     console.error("Provisioning failed:", error);
-    console.error("Is Python in your PATH?")
+    console.error("Is Python in your PATH? Are all the dependencies installed?");
   }
 }
 
-function mainLoop() {
+async function mainLoop() {
   console.log("Starting generation for forecast products...");
+  
+  // Process each COOP ID sequentially to avoid rate limiting
   for (const coopid of coop_interest_list) {
-    generateForTecci(coopid).catch(err => {
+    try {
+      await generateForTecci(coopid);
+    } catch (err) {
       console.error(`Error generating for COOP ID ${coopid}:`, err);
-    });
+    }
   }
 
-  provisionIntelliStar();
+  await provisionIntelliStar();
+  console.log("All products generated and provisioned.");
 }
 
 function countdown(seconds) {
@@ -216,7 +221,7 @@ function countdown(seconds) {
 
 async function runLoop() {
   while (true) {
-    mainLoop();
+    await mainLoop();
     console.log(`\nWaiting ${DATA_INTERVAL_MINUTES} minutes until next update...`);
     await countdown(DATA_INTERVAL_MINUTES * 60);
   }

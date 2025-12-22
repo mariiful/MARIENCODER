@@ -32,8 +32,7 @@ import twc.dsmarshal as dsm
 #areaList = wxdata.getUGCInterestList('${input.location}', 'coopId')
 
 twccommon.Log.info("MARI ENCODER - Hourly Forecast is being sent")
-#if not areaList:
-#    abortMsg()
+
 
 Y, M, D, h, m, s, wd, jd, dst = time.localtime(time.time())
 if h < 16:

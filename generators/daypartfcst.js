@@ -22,8 +22,7 @@ areaList = wxdata.getUGCInterestList('${location}', 'coopId')
 #twccommon.Log.info(areaList)
 
 twccommon.Log.info("MARI ENCODER - Daypart forecast is being sent.")
-#if not areaList:
-#    abortMsg()
+
 
 Y, M, D, h, m, s, wd, jd, dst = time.localtime(time.time())
 dOffset = 0  # Always use offset of 0

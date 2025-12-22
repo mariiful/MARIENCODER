@@ -15,10 +15,12 @@ let pythonPrefix;
     pythonPrefix = 'python3'
   }
 
+
+
 exec.execSync(`${pythonPrefix} ./fetch_remote_config.py`, { stdio: 'inherit' });
 
-import { lookupByTecci } from './generators/stationLookup.js';
-
+import { searchByCoopId, searchByTecci } from './LFRecord.js';
+import { searchByNameAndState } from './LFRecord.js';
 import { generateDaily } from "./generators/daily.js";
 import { generateDaypart } from "./generators/daypartfcst.js";
 import { generateHourly } from "./generators/hourly.js";
@@ -29,7 +31,7 @@ const units = config.API.UNITS;
 const DATA_INTERVAL_MINUTES = config.SYSTEM.DATA_MINUTE_INTERVAL;
 
 const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
-//const obs_interest_list = interest_list.obsStation
+const obs_interest_list = interest_list.obsStation
 const coop_interest_list = interest_list.coopId
 
 const __filename = fileURLToPath(import.meta.url);
@@ -116,57 +118,66 @@ async function fetchCurrent(lat, lon) {
   return response.data;
 }
 
-async function generateForTecci(coopid) {
-  console.log(`Resolving COOP/TECCI ID ${coopid}`);
+async function aggregate() {
+  let current = '';
+  let hourly = '';
+  let daily = '';
+  let daypart = '';
 
-  const station = await lookupByTecci(coopid);
-  const lat = Number(station.lat);
-  const lon = Number(station.lon);
-  console.log("Using lat/lon:", lat, lon);
+  for (const obs of obs_interest_list) {
+    try {
+      const locData = await searchByTecci(obs);
+      if (!locData) {
+        console.log(`Skipping ${obs} - not found in LFRecord`);
+        continue;
+      }
+      const lat = locData.lat;
+      const lon = locData.long;
+      const wxData = await fetchCurrent(lat, lon);
+      wxData.location = obs;
+      wxData.county = locData.coopId || obs;
+      const pyCode = generateCurrent(wxData);
+      current += pyCode + '\n';
+      console.log(`Generated current conditions for ${obs}`);
+    } catch (err) {
+      console.error(`Error generating current for ${obs}:`, err.message);
+    }
+  }
 
-  console.log(
-    `Location resolved: ${station.city}, ${station.state} (${lat}, ${lon})`
-  );
+  for (const coopid of coop_interest_list) {
+    try {
+      const locData = await searchByCoopId(coopid);
+      if (!locData) {
+        console.log(`Skipping ${coopid} - not found in LFRecord`);
+        continue;
+      }
+      const lat = locData.lat;
+      const lon = locData.long;
+      const dailyData = await fetchDaily(lat, lon);
+      const daypartData = await fetchDaypart(lat, lon);
+      const hourlyData = await fetchHourly(lat, lon);
+      dailyData.location = coopid;
+      daypartData.location = coopid;
+      hourlyData.location = coopid;
+      const dailyPy = generateDaily(dailyData);
+      const daypartPy = generateDaypart(daypartData);
+      const hourlyPy = generateHourly(hourlyData);
+      daily += dailyPy + '\n';
+      daypart += daypartPy + '\n';
+      hourly += hourlyPy + '\n';
 
-  const dailyData = await fetchDaily(lat, lon);
-  const daypartData = await fetchDaypart(lat, lon);
-  const hourlyData = await fetchHourly(lat, lon);
-  const currentData = await fetchCurrent(lat, lon);
+      console.log(`Generated forecast products for COOP ID ${coopid}`);
+    } catch (err) {
+      console.error(`Error generating forecasts for ${coopid}:`, err.message);
+    }
+  }
 
-  dailyData.location = coopid;
-  daypartData.location = coopid;
-  hourlyData.location = coopid;
-  currentData.location = "T"+coopid;
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'current.py'), current);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'daily.py'), daily);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'daypart.py'), daypart);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'hourly.py'), hourly);
 
-
-  console.log("Daily Data:", dailyData);
-  console.log("Daypart Data:", daypartData);
-  console.log("Hourly Data:", hourlyData);
-
-  const dailyPy = generateDaily(dailyData);
-  const daypartPy = generateDaypart(daypartData);
-  const hourlyPy = generateHourly(hourlyData);
-  const currentPy = generateCurrent(currentData);
-
-  fs.writeFileSync(
-    path.join(OUTPUT_DIR, `${coopid}_daily.py`),
-    dailyPy
-  );
-
-  fs.writeFileSync(
-    path.join(OUTPUT_DIR, `${coopid}_daypart.py`),
-    daypartPy
-  );
-
-  fs.writeFileSync(
-    path.join(OUTPUT_DIR, `${coopid}_hourly.py`),
-    hourlyPy
-  );
-    fs.writeFileSync(
-    path.join(OUTPUT_DIR, `${coopid}_current.py`),
-    currentPy
-  );
-  console.log(`Finished generating products for ${coopid}`);
+  console.log('All products written to output folder.');
 }
 
 
@@ -185,14 +196,10 @@ async function provisionIntelliStar() {
 
 async function mainLoop() {
   console.log("Starting generation for forecast products...");
-  
-  // Process each COOP ID sequentially to avoid rate limiting
-  for (const coopid of coop_interest_list) {
-    try {
-      await generateForTecci(coopid);
-    } catch (err) {
-      console.error(`Error generating for COOP ID ${coopid}:`, err);
-    }
+  try {
+    await aggregate();
+  } catch (err) {
+    console.error(`Error during aggregation:`, err);
   }
 
   await provisionIntelliStar();

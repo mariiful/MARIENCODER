@@ -4,11 +4,12 @@ export function generateCurrent(input) {
     let header = `import twccommon
 
 twccommon.Log.info("MARI ENCODER - Current Conditions is being sent for ${input.location}")
+areaList = wxdata.getUGCInterestList('${input.county}', 'county')
 `
 
 let data = `
 b = twc.Data()
-b.skyCondition = ${input.iconCode}
+b.skyCondition = ${input.iconCodeExtend}
 b.temp = ${input.temperature}
 b.humidity = ${input.relativeHumidity}
 b.feelsLike = ${input.temperatureFeelsLike}

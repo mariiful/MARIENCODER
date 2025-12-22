@@ -126,9 +126,9 @@ async function aggregate() {
   for (const obs of obs_interest_list) {
     // curtent conditins
     try {
-
-      const coopId = obs.startsWith('T') ? obs.substring(1) : obs;
       const locData = await searchByTecci(coopId);
+      const coopId = locData.coopId;
+      
       if (!locData) {
         console.log(`Skipping ${obs} - not found in LFRecord`);
         continue;

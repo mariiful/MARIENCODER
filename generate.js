@@ -4,6 +4,7 @@ import axios from 'axios';
 import yaml from 'yaml';
 import exec, { ChildProcess } from 'child_process';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 const config = yaml.parse(fs.readFileSync('config.yaml', 'utf8'));
 
@@ -31,10 +32,15 @@ const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json',
 //const obs_interest_list = interest_list.obsStation
 const coop_interest_list = interest_list.coopId
 
-const OUTPUT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'output');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const OUTPUT_DIR = path.join(__dirname, 'output');
+
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
+
 
 async function fetchDaily(lat, lon) {
   const url = "https://api.weather.com/v3/wx/forecast/daily/7day";

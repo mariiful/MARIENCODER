@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import yaml from 'yaml';
+import exec from 'child_process';
 
 const config = yaml.parse(fs.readFileSync('config.yaml', 'utf8'));
 
@@ -146,6 +147,19 @@ async function generateForTecci(coopid) {
   );
 
   console.log(`Finished generating products for ${coopid}`);
+  provisionIntelliStar();
+}
+
+async function provisionIntelliStar() {
+  try {
+    console.log("Starting provisioning to IntelliStar...");
+    exec.execSync('python3 provision.py', { stdio: 'inherit' });
+    console.log("Provisioning completed successfully.");
+  } catch (error) {
+    console.error("hol up twin")
+    console.error("Provisioning failed:", error);
+    console.error("Is Python in your PATH?")
+  }
 }
 
 const coopid = process.argv[2];

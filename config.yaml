@@ -2,7 +2,7 @@ SFTP:
   IP: "172.16.1.38"
   PORT: 22
   USERNAME: "root"
-  PASSWORD: "root"
+  PASSWORD: "i1root"
 
 API:
   WEATHER_API_KEY: "e1f10a1e78da46f5b10a1e78da96f525"

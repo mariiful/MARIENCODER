@@ -19,7 +19,8 @@ let pythonPrefix;
 
 exec.execSync(`${pythonPrefix} ./fetch_remote_config.py`, { stdio: 'inherit' });
 
-import { searchByTecci } from './LFRecord.js';
+import { searchByObs } from './LFRecord.js';
+import { searchByCoopId } from './LFRecord.js';
 import { generateDaily } from "./generators/daily.js";
 import { generateDaypart } from "./generators/daypartfcst.js";
 import { generateHourly } from "./generators/hourly.js";
@@ -30,8 +31,8 @@ const units = config.API.UNITS;
 const DATA_INTERVAL_MINUTES = config.SYSTEM.DATA_MINUTE_INTERVAL;
 
 const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
-const obs_interest_list = interest_list.obsStation
-const coop_interest_list = interest_list.coopId
+const obs_interest_list = interest_list.obsStation;
+const coop_interest_list = interest_list.coopId;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,11 +125,12 @@ async function aggregate() {
   let daypart = '';
 
   for (const obs of obs_interest_list) {
+    await obs_interest_list
+    await coop_interest_list
     // curtent conditins
     try {
-      const locData = await searchByTecci(coopId);
-      const coopId = locData.coopId;
-      
+      const locData = await searchByObs(obs);
+
       if (!locData) {
         console.log(`Skipping ${obs} - not found in LFRecord`);
         continue;
@@ -148,7 +150,7 @@ async function aggregate() {
 
   for (const coopid of coop_interest_list) {
     try {
-      const locData = await searchByTecci(coopid);
+      const locData = await searchByCoopId(coopid);
       if (!locData) {
         console.log(`Skipping ${coopid} - not found in LFRecord`);
         continue;

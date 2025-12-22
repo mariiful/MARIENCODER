@@ -20,11 +20,15 @@ export function searchByNameAndState(name, stateCode) {
 }
 
 
-export function searchByTecci(tecci) {
+export function searchByObs(obs) {
   return new Promise((resolve, reject) => {
-    const query = `SELECT * FROM LFRecord WHERE coopId = ?`;
+    let query = `SELECT * FROM LFRecord WHERE primTecci = ?`;
+
+    if (obs.length <= 4) {
+      query = `SELECT * FROM LFRecord WHERE obsStn = ?`;
+    }
     
-    db.get(query, [tecci], (err, row) => {
+    db.get(query, [obs], (err, row) => {
       if (err) {
         reject(err);
       } else {

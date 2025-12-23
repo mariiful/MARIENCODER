@@ -27,4 +27,4 @@ Lastly, run the program:
 ``` npm start ```
 
 # Contributing
-This program is still in development. Please make a pull request for any contributions you would like to add.
+This program is still in development. Please make a pull request for any contributions you would like to add. K THX BYE!!!!!!!!!!

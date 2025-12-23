@@ -10,8 +10,6 @@ export function generateDaily(input) {
     }
     let keyTime = Math.floor(midnightLocal.getTime() / 1000);
 
-    console.log(new Date(keyTime * 1000).toLocaleString(), fcstDate.toLocaleString(), hour);
-
     let rem = 1;
 
     const daypartIcons = input.daypart?.[0]?.iconCodeExtend || [];

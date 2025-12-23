@@ -134,7 +134,6 @@ async function aggregate() {
       wxData.county = locData.cntyId;
       const pyCode = generateCurrent(wxData);
       current += pyCode + '\n';
-      console.log(`Generated current conditions for ${obs}`);
     } catch (err) {
       console.error(`Error generating current for ${obs}:`, err.message);
     }
@@ -162,7 +161,6 @@ async function aggregate() {
       daypart += daypartPy + '\n';
       hourly += hourlyPy + '\n';
 
-      console.log(`Generated forecast products for COOP ID ${coopid}`);
     } catch (err) {
       console.error(`Error generating forecasts for ${coopid}:`, err.message);
     }

@@ -1,8 +1,4 @@
-/**
- * Convert V3 TWC CC + V3 Location Info / IStar LFRecord to IStar CC
- * @param {Object} input - V3 API CC Data as Json
- * @returns {}
- */
+
 export function generateHeadline(input) {
     return `
 import time

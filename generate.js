@@ -55,8 +55,6 @@ async function fetchDaily(lat, lon) {
     apiKey: API_KEY
   };
 
-  console.log("DAILY REQUEST PARAMS:", params);
-
   const response = await axios.get(url, { params });
   return response.data;
 }
@@ -76,8 +74,6 @@ async function fetchDaypart(lat, lon) {
     apiKey: API_KEY
   };
 
-  console.log("DAYPART REQUEST PARAMS:", params);
-
   const response = await axios.get(url, { params });
   return response.data;
 }
@@ -95,8 +91,6 @@ async function fetchHourly(lat, lon) {
     apiKey: API_KEY
   };
 
-  console.log("HOURLY REQUEST PARAMS:", params);
-
   const response = await axios.get(url, { params });
   return response.data;
 }
@@ -111,8 +105,6 @@ async function fetchCurrent(lat, lon) {
     language: "en-US",
     apiKey: API_KEY
   };
-
-  console.log("CURRENT REQUEST PARAMS:", params);
 
   const response = await axios.get(url, { params });
   return response.data;

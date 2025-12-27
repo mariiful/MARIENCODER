@@ -175,11 +175,10 @@ async function aggregate() {
 }
 
 
-async function provisionIntelliStar() {
-
+async function provisionIntelliStar(job) {
   try {
     console.log("Starting provisioning to IntelliStar...");
-    exec.execSync(`${pythonPrefix} provision.py`, { stdio: 'inherit' });
+    exec.execSync(`${pythonPrefix} provision.py --job ${job}`, { stdio: 'inherit' });
     console.log("Provisioning completed successfully.");
   } catch (error) {
     console.error("hol up twin")
@@ -189,15 +188,7 @@ async function provisionIntelliStar() {
 }
 
 async function mainLoop() {
-  console.log("Starting generation for forecast products...");
-  try {
-    await aggregate();
-  } catch (err) {
-    console.error(`Error during aggregation:`, err);
-  }
 
-  await provisionIntelliStar();
-  console.log("All products generated and provisioned.");
 }
 
 function countdown(seconds) {
@@ -222,9 +213,23 @@ function countdown(seconds) {
 
 async function runLoop() {
   while (true) {
-    await mainLoop();
+    console.log("Starting generation for forecast products...");
+    try {
+      await aggregate();
+    } catch (err) {
+      console.error(`Error during aggregation:`, err);
+    }
+
+    await provisionIntelliStar();
+    console.log("All products generated and provisioned.");
     console.log(`\nWaiting ${DATA_INTERVAL_MINUTES} minutes until next update...`);
     await countdown(DATA_INTERVAL_MINUTES * 60);
+
+    setInterval(() => {
+      console.log("Starting NTP time synchronization...");
+      provisionIntelliStar("timesync");
+      console.log("NTP time synchronization completed.");
+    }, config.SYSTEM.NTP_MINUTE_INTERVAL * 60 * 1000);
   }
 }
 

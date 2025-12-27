@@ -1,7 +1,8 @@
 import paramiko
 import os
 import yaml
-import time
+import argparse
+import ntplib
 from datetime import datetime
 
 config = yaml.safe_load(open("config.yaml"))
@@ -37,15 +38,21 @@ def runomni_that_white_boy(command: str):
     client.close()
 
 def sync_that_funky_time_white_boy():
-    now = datetime.now()
-    freebsd_timestamp = now.strftime("%m%d%H%M%Y.%S") # Generate current FreeBSD timestamp
+    ntpservers = [config['SYSTEM']['NTP1'], config['SYSTEM']['NTP2']]
+    try:
+        ntpnow = ntplib.NTPClient().request(ntpservers[0])
+        print(f"Queried NTP server: {ntpservers[0]}")
+    except:
+        ntpnow = ntplib.NTPClient().request(ntpservers[1])
+        print(f"Queried backup NTP server: {ntpservers[1]}")
+    freebsd_timestamp = datetime.fromtimestamp(float(ntpnow.tx_time)).strftime("%Y%m%d%H%M.%S") # Generate current FreeBSD timestamp
     print("Syncing your time... Your timestamp is: " + freebsd_timestamp)
     
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname=config['SFTP']['IP'], username=config['SFTP']['USERNAME'], password=config['SFTP']['PASSWORD'])
     
-    stdin, stdout, stderr = client.exec_command("date " + freebsd_timestamp) # Sync the time of the VM
+    stdin, stdout, stderr = client.exec_command("date " + freebsd_timestamp)
     
     output = stdout.read().decode("utf-8", errors="replace")
     error = stderr.read().decode("utf-8", errors="replace")
@@ -81,4 +88,12 @@ def sftp_upload():
     
 
 if __name__ == "__main__":
-    sftp_upload()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job', action='store', help="Run a specific job. Available jobs: data, timesync", default="data")
+    args = parser.parse_args()
+    if args.job == "data":
+        sftp_upload()
+    if args.job == "timesync":
+        sync_that_funky_time_white_boy()
+    else:
+        sftp_upload()

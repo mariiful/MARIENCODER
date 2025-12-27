@@ -10,3 +10,6 @@ API:
 
 SYSTEM:
   DATA_MINUTE_INTERVAL: 30
+  NTP_MINUTE_INTERVAL: 60
+  NTP1: "time.nist.gov"
+  NTP2: "pool.ntp.org"

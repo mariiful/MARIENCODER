@@ -2,6 +2,7 @@ import paramiko
 import os
 import yaml
 import time
+from datetime import datetime
 
 config = yaml.safe_load(open("config.yaml"))
 data_root = os.path.join(os.path.dirname(__file__), "output")
@@ -35,7 +36,29 @@ def runomni_that_white_boy(command: str):
     
     client.close()
 
+def sync_that_funky_time_white_boy():
+    now = datetime.now()
+    freebsd_timestamp = now.strftime("%m%d%H%M%Y.%S") # Generate current FreeBSD timestamp
+    print("Syncing your time... Your timestamp is: " + freebsd_timestamp)
+    
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=config['SFTP']['IP'], username=config['SFTP']['USERNAME'], password=config['SFTP']['PASSWORD'])
+    
+    stdin, stdout, stderr = client.exec_command("date " + freebsd_timestamp) # Sync the time of the VM
+    
+    output = stdout.read().decode("utf-8", errors="replace")
+    error = stderr.read().decode("utf-8", errors="replace")
+    
+    if output:
+        print(output)
+    if error:
+        print(error)
+        
+    client.close()
+
 def sftp_upload():
+    sync_that_funky_time_white_boy()
     sftp_config = config['SFTP']
     transport = paramiko.Transport((sftp_config['IP'], sftp_config['PORT']))
     transport.connect(username=sftp_config['USERNAME'], password=sftp_config['PASSWORD'])

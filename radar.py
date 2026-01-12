@@ -26,7 +26,7 @@ radarType = "Radar-US"
 OUTPUT_DIR = "radar/"
 
 l = logging.getLogger(__name__)
-coloredlogs.install()
+coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
 
 upperLeftX,upperLeftY,lowerRightX,lowerRightY = 0,0,0,0
 xStart,xEnd,yStart,yEnd = 0,0,0,0
@@ -181,7 +181,6 @@ def downloadRadarTile(url, p, fn):
         pass
 
 def getImageBoundaries() -> ImageBoundaries:
-
     seqDef = {
         "Radar-US": {
             "LowerLeftLong": -126.834935,
@@ -306,7 +305,6 @@ def CalculateBounds(upperRight:LatLong, lowerLeft:LatLong, upperLeft:LatLong, lo
     imgW = 256 * (xTiles + 1)
     imgH = 256 * (yTiles + 1)
 
-
 COLOR_MAP = {
     # Rain colors
     (99 << 16) | (235 << 8) | 99: (64, 204, 85),    # lightest green
@@ -346,7 +344,6 @@ def getTime(timestamp) -> str:
     time:datetime = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%m/%d/%Y %H:%M:%S")
         
     return str(time)
-
 
 def makeRadarImages():
     """ Creates proper radar frames for the i2 """
@@ -441,7 +438,6 @@ def makeRadarImages():
 
             imgsToGenerate[i].save(full_path, compression = 'tiff_lzw')
             framesToComposite.append(full_path)
-
             rmtree(tile_dir)
 
     imgsProcessed = 0 

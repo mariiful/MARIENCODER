@@ -3,8 +3,15 @@ import os
 import yaml
 import re
 import json
+import logging
+import coloredlogs
 
 config = yaml.safe_load(open("config.yaml"))
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
+
 remote_root = "./remote"
 remote_config = "/home/dgadmin/config/current/config.py"
 
@@ -17,7 +24,7 @@ def fetch_remote_config():
     local_path = os.path.join(remote_root, "config.py")
     os.makedirs(remote_root, exist_ok=True)
     sftp.get(remote_config, local_path)
-    print(f"Fetched remote config to {local_path}")
+    logger.info(f"Fetched remote config to {local_path}")
     
     sftp.close()
     client.close()
@@ -44,13 +51,13 @@ def compile_remote_interest_list():
     with open(output_path, "w") as f:
         json.dump(interest_lists, f, indent=2)
     
-    print(f"Saved interest lists to {output_path}")
+    logger.info(f"Saved interest lists to {output_path}")
     return interest_lists
 
 if __name__ == "__main__":
     fetch_remote_config()
-    print("Remote configuration fetched successfully.")
+    logger.info("Remote configuration fetched successfully.")
     interest_lists = compile_remote_interest_list()
-    print("\nExtracted interest lists:")
-    print(f"  coopId: {interest_lists.get('coopId', [])}")
-    print(f"  obsStation: {interest_lists.get('obsStation', [])}")
+    logger.info("\nExtracted interest lists:")
+    logger.info(f"  coopId: {interest_lists.get('coopId', [])}")
+    logger.info(f"  obsStation: {interest_lists.get('obsStation', [])}")

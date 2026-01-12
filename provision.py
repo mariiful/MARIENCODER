@@ -4,8 +4,21 @@ import yaml
 import argparse
 import ntplib
 from datetime import datetime, timezone
+import logging
+import coloredlogs
 
 config = yaml.safe_load(open("config.yaml"))
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
+
+STUPID_FUCKING_TWC_CORBA_ERROR = (
+    "Exception exceptions.TypeError: '\'NoneType\' object is not callable" 
+    " in <bound method _objref_ProxyPushConsumer.__del__ of <twccommon.corba._ProxyPushConsumer object at"
+)
+
+
 data_root = os.path.join(os.path.dirname(__file__), "output")
 
 def enumerate_the_loathed_files():
@@ -14,7 +27,7 @@ def enumerate_the_loathed_files():
         for filename in filenames:
             if filename.endswith(".py"):
                 files.append(os.path.join(root, filename))
-                print(f"Found file to upload: {filename}")
+                logger.info(f"Found file to upload: {filename}")
     return files
 
 def runomni_that_white_boy(command: str):
@@ -23,14 +36,17 @@ def runomni_that_white_boy(command: str):
     client.connect(hostname=config['SFTP']['IP'], username=config['SFTP']['USERNAME'], password=config['SFTP']['PASSWORD'])
     
     full_command = f"su -l dgadmin -c '{command}'"
-    print(f"Running: {full_command}")
+    logger.info(f"Running: {full_command}")
     
     stdin, stdout, stderr = client.exec_command(full_command)
 
     error = stderr.read().decode("utf-8", errors="replace")
 
-    if error:
-        print(f"Error from remote runomni execution: {error}")
+    logger.info(f"Executed remote command: {full_command}")
+
+    if error and not STUPID_FUCKING_TWC_CORBA_ERROR in error:
+        logger.error(f"Error from remote SSH execution: {error}")
+    
     
     client.close()
 
@@ -42,18 +58,18 @@ def sync_that_funky_time_white_boy():
     for server in ntpservers:
         try:
             ntpnow = ntplib.NTPClient().request(host=server)
-            print(f"Queried NTP server: {server}")
+            logger.info(f"Queried NTP server: {server}")
             freebsd_timestamp = datetime.fromtimestamp(float(ntpnow.tx_time), tz=timezone.utc).strftime("%Y%m%d%H%M.%S")
-            print("Syncing your time... Your timestamp is: " + freebsd_timestamp)
+            logger.info("Syncing your time... Your timestamp is: " + freebsd_timestamp)
             break
         except Exception as e:
-            print(f"Failed to query {server}: {e}")
+            logger.warning(f"Failed to query {server}: {e}")
 
     if not ntpnow or freebsd_timestamp is None:
-        print("Could not query any NTP server. Syncing time from host clock instead.")
+        logger.warning("Could not query any NTP server. Syncing time from host clock instead.")
         utcnow = datetime.now(timezone.utc)
         freebsd_timestamp = utcnow.strftime("%Y%m%d%H%M.%S")
-        print("Syncing your time... Your timestamp is: " + freebsd_timestamp)
+        logger.info("Syncing your time... Your timestamp is: " + freebsd_timestamp)
     
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -68,14 +84,15 @@ def sync_that_funky_time_white_boy():
         error = stderr.read().decode("utf-8", errors="replace")
 
         if error:
-            print(f"Error from remote time sync execution: {error}")
+            logger.error(f"Error from remote time sync execution: {error}")
     except Exception as e:
-        print(f"SSH Connection failed: {e}")
+        logger.error(f"SSH Connection failed: {e}")
     finally:
         client.close()
 
 def sftp_upload(product: str):
     image_root = os.path.join(os.path.dirname(__file__), "radar")
+    remote_image_root = "/twc/data/volatile/images/radar/us/"
 
     sftp_config = config['SFTP']
     transport = paramiko.Transport((sftp_config['IP'], sftp_config['PORT']))
@@ -89,16 +106,32 @@ def sftp_upload(product: str):
         subprocess.run([py_launcher, os.path.join(os.path.dirname(__file__), "radar.py")])
 
         with os.scandir(image_root) as f:
+                try:
+                    current_remote_images = sftp.listdir(remote_image_root)
+
+                    for remote_image in current_remote_images:
+                        if '.tif' in remote_image:
+                            parts = remote_image.split('.')
+                            if len(parts) >= 3:
+                                expiration_timestamp = int(parts[1])
+                                current_timestamp = int(datetime.now(timezone.utc).timestamp())
+                                if current_timestamp > expiration_timestamp:
+                                    remote_image_path = os.path.join(remote_image_root, remote_image)
+                                    sftp.remove(remote_image_path)
+                                    logger.info(f"Deleted expired image: {remote_image_path}")
+                except FileNotFoundError:
+                    return
+
                 for entry in f:
                     if entry.is_file():
                         local_image_path = entry.path
-                        remote_image_path = os.path.join("/twc/data/volatile/images/radar/us/", entry.name)
+                        remote_image_path = os.path.join(remote_image_root, entry.name)
                         try:
-                            sftp.stat("/twc/data/volatile/images/radar/us/")
+                            sftp.stat(remote_image_root)
                         except FileNotFoundError:
-                            sftp.mkdir("/twc/data/volatile/images/radar/us/")
+                            sftp.mkdir(remote_image_root)
                         sftp.put(local_image_path, remote_image_path)
-                        print(f"Uploaded image {local_image_path} to {remote_image_path}")
+                        logger.info(f"Uploaded image {local_image_path} to {remote_image_path}")
     if product == "text_data" or product == "all":
         for file_path in enumerate_the_loathed_files():
             remote_path = os.path.join("/home/dgadmin/", os.path.relpath(file_path, data_root))
@@ -108,7 +141,7 @@ def sftp_upload(product: str):
             except FileNotFoundError:
                 sftp.mkdir(remote_dir)
             sftp.put(file_path, remote_path)
-            print(f"Uploaded {file_path} to {remote_path}")
+            logger.info(f"Uploaded {file_path} to {remote_path}")
             runomni_that_white_boy(f"runomni /twc/util/loadSCMTconfig.pyc {remote_path}")
     
     sftp.close()
@@ -128,6 +161,6 @@ if __name__ == "__main__":
     if args.job == "all":
         sync_that_funky_time_white_boy()
         sftp_upload("all")
-
-    else:
-        sftp_upload("all")
+    if args.job == None:
+        logger.error("No job specified. Use --job to specify a job to run.")
+        parser.print_help()

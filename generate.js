@@ -166,21 +166,28 @@ async function aggregate() {
   console.log('All products written to output folder.');
 }
 
-
 async function provisionIntelliStar(job) {
   try {
     console.log("Starting provisioning to IntelliStar...");
     exec.execSync(`${pythonPrefix} provision.py --job ${job}`, { stdio: 'inherit' });
     console.log("Provisioning completed successfully.");
   } catch (error) {
-    console.error("hol up twin")
     console.error("Provisioning failed:", error);
-    console.error("Is Python in your PATH? Are all the dependencies installed?");
   }
 }
 
 function countdown(dataSeconds, ntpSeconds, radarSeconds) {
   return new Promise((resolve) => {
+
+    if (dataSeconds <= 0 && ntpSeconds <= 0 && radarSeconds <= 0) {
+      resolve({
+        dataRemaining: 0,
+        ntpRemaining: 0,
+        radarRemaining: 0
+      });
+      return;
+    }
+    
     let dataRemaining = dataSeconds;
     let ntpRemaining = ntpSeconds;
     let radarRemaining = radarSeconds;
@@ -205,16 +212,15 @@ function countdown(dataSeconds, ntpSeconds, radarSeconds) {
       dataRemaining--;
       ntpRemaining--;
       radarRemaining--;
-      
-      // Resolve when ANY counter hits zero (whichever comes first)
+
       if (dataRemaining < 0 || ntpRemaining < 0 || radarRemaining < 0) {
         clearInterval(interval);
 
         process.stdout.write('\r\x1B[K\n\x1B[K\n\x1B[K\r');
         resolve({
-          dataRemaining: Math.max(0, dataRemaining + 1),
-          ntpRemaining: Math.max(0, ntpRemaining + 1),
-          radarRemaining: Math.max(0, radarRemaining + 1)
+          dataRemaining: Math.max(1, dataRemaining + 1),
+          ntpRemaining: Math.max(1, ntpRemaining + 1),
+          radarRemaining: Math.max(1, radarRemaining + 1)
         });
       }
     }, 1000);
@@ -226,7 +232,31 @@ async function runLoop() {
   let radarCountdown = RADAR_MINUTE_INTERVAL * 60;
   let dataCountdown = DATA_MINUTE_INTERVAL * 60;
   
+  // Run all jobs once at startup
+  console.log("Starting initial generation for all forecast products...");
+  try {
+    await aggregate();
+  } catch (err) {
+    console.error(`Error during aggregation:`, err);
+  }
+  await provisionIntelliStar("data");
+  console.log("Data products generated and provisioned.");
+  
+  console.log("Starting initial NTP time synchronization...");
+  await provisionIntelliStar("timesync");
+  console.log("NTP time synchronization completed.");
+  
+  console.log("Starting initial radar data provisioning...");
+  await provisionIntelliStar("radar");
+  console.log("Radar data provisioning completed.");
+  
   while (true) {
+    console.log(`\nWaiting until next update...`);
+    const remaining = await countdown(dataCountdown, ntpCountdown, radarCountdown);
+    dataCountdown = remaining.dataRemaining;
+    ntpCountdown = remaining.ntpRemaining;
+    radarCountdown = remaining.radarRemaining;
+    
     if (dataCountdown <= 0) {
       console.log("Starting generation for forecast products...");
       try {
@@ -253,12 +283,6 @@ async function runLoop() {
       console.log("Radar data provisioning completed.");
       radarCountdown = RADAR_MINUTE_INTERVAL * 60;
     }
-    
-    console.log(`\nWaiting until next update...`);
-    const remaining = await countdown(dataCountdown, ntpCountdown, radarCountdown);
-    dataCountdown = remaining.dataRemaining;
-    ntpCountdown = remaining.ntpRemaining;
-    radarCountdown = remaining.radarRemaining;
   }
 }
 

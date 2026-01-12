@@ -305,7 +305,6 @@ def CalculateBounds(upperRight:LatLong, lowerLeft:LatLong, upperLeft:LatLong, lo
 
     imgW = 256 * (xTiles + 1)
     imgH = 256 * (yTiles + 1)
-    print(f"{imgW} x {imgH}")
 
 
 COLOR_MAP = {

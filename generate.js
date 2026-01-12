@@ -25,7 +25,7 @@ import { generateCurrent } from "./generators/current.js";
 
 const API_KEY = config.API.WEATHER_API_KEY;
 const units = config.API.UNITS;
-const DATA_INTERVAL_MINUTES = config.SYSTEM.DATA_MINUTE_INTERVAL;
+const DATA_MINUTE_INTERVAL = config.SYSTEM.DATA_MINUTE_INTERVAL;
 const NTP_MINUTE_INTERVAL = config.SYSTEM.NTP_MINUTE_INTERVAL;
 const RADAR_MINUTE_INTERVAL = config.SYSTEM.RADAR_MINUTE_INTERVAL;
 
@@ -186,12 +186,12 @@ function countdown(dataSeconds, ntpSeconds, radarSeconds) {
     let radarRemaining = radarSeconds;
     
     const interval = setInterval(() => {
-      const dataMins = Math.floor(dataRemaining / 60);
-      const dataSecs = dataRemaining % 60;
-      const ntpMins = Math.floor(ntpRemaining / 60);
-      const ntpSecs = ntpRemaining % 60;
-      const radarMins = Math.floor(radarRemaining / 60);
-      const radarSecs = radarRemaining % 60;
+      const dataMins = Math.max(0, Math.floor(dataRemaining / 60));
+      const dataSecs = dataRemaining >= 0 ? dataRemaining % 60 : 0;
+      const ntpMins = Math.max(0, Math.floor(ntpRemaining / 60));
+      const ntpSecs = ntpRemaining >= 0 ? ntpRemaining % 60 : 0;
+      const radarMins = Math.max(0, Math.floor(radarRemaining / 60));
+      const radarSecs = radarRemaining >= 0 ? radarRemaining % 60 : 0;
       
       process.stdout.write('\r\x1B[K');
       process.stdout.write(`Next data update:  ${dataMins.toString().padStart(2, '0')}:${dataSecs.toString().padStart(2, '0')}\n`);
@@ -206,13 +206,15 @@ function countdown(dataSeconds, ntpSeconds, radarSeconds) {
       ntpRemaining--;
       radarRemaining--;
       
-      if (dataRemaining < 0) {
+      // Resolve when ANY counter hits zero (whichever comes first)
+      if (dataRemaining < 0 || ntpRemaining < 0 || radarRemaining < 0) {
         clearInterval(interval);
 
         process.stdout.write('\r\x1B[K\n\x1B[K\n\x1B[K\r');
         resolve({
-          ntpRemaining: ntpRemaining + 1,
-          radarRemaining: radarRemaining + 1
+          dataRemaining: Math.max(0, dataRemaining + 1),
+          ntpRemaining: Math.max(0, ntpRemaining + 1),
+          radarRemaining: Math.max(0, radarRemaining + 1)
         });
       }
     }, 1000);
@@ -222,17 +224,21 @@ function countdown(dataSeconds, ntpSeconds, radarSeconds) {
 async function runLoop() {
   let ntpCountdown = NTP_MINUTE_INTERVAL * 60;
   let radarCountdown = RADAR_MINUTE_INTERVAL * 60;
+  let dataCountdown = DATA_MINUTE_INTERVAL * 60;
   
   while (true) {
-    console.log("Starting generation for forecast products...");
-    try {
-      await aggregate();
-    } catch (err) {
-      console.error(`Error during aggregation:`, err);
-    }
+    if (dataCountdown <= 0) {
+      console.log("Starting generation for forecast products...");
+      try {
+        await aggregate();
+      } catch (err) {
+        console.error(`Error during aggregation:`, err);
+      }
 
-    await provisionIntelliStar("data");
-    console.log("All products generated and provisioned.");
+      await provisionIntelliStar("data");
+      console.log("All products generated and provisioned.");
+      dataCountdown = DATA_MINUTE_INTERVAL * 60;
+    }
     
     if (ntpCountdown <= 0) {
       console.log("Starting NTP time synchronization...");
@@ -249,7 +255,8 @@ async function runLoop() {
     }
     
     console.log(`\nWaiting until next update...`);
-    const remaining = await countdown(DATA_INTERVAL_MINUTES * 60, ntpCountdown, radarCountdown);
+    const remaining = await countdown(dataCountdown, ntpCountdown, radarCountdown);
+    dataCountdown = remaining.dataRemaining;
     ntpCountdown = remaining.ntpRemaining;
     radarCountdown = remaining.radarRemaining;
   }

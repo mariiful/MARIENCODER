@@ -24,7 +24,6 @@ areaList = wxdata.getUGCInterestList('${input.location}', 'coopId')
 twccommon.Log.info("MARI ENCODER - Daily Forecast is being sent")
 
 keyTime = ${keyTime}
-print(keyTime)
 `;
 
     const numDays = input.dayOfWeek?.length || 0;

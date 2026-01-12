@@ -27,13 +27,10 @@ def runomni_that_white_boy(command: str):
     
     stdin, stdout, stderr = client.exec_command(full_command)
 
-    output = stdout.read().decode("utf-8", errors="replace")
     error = stderr.read().decode("utf-8", errors="replace")
-    
-    if output:
-        print(output)
+
     if error:
-        print(error)
+        print(f"Error from remote runomni execution: {error}")
     
     client.close()
 
@@ -51,8 +48,8 @@ def sync_that_funky_time_white_boy():
             break
         except Exception as e:
             print(f"Failed to query {server}: {e}")
-            
-    if not ntpnow:
+
+    if not ntpnow or freebsd_timestamp is None:
         print("Could not query any NTP server. Syncing time from host clock instead.")
         utcnow = datetime.now(timezone.utc)
         freebsd_timestamp = utcnow.strftime("%Y%m%d%H%M.%S")
@@ -62,15 +59,16 @@ def sync_that_funky_time_white_boy():
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(hostname=config['SFTP']['IP'], username=config['SFTP']['USERNAME'], password=config['SFTP']['PASSWORD'])
-        stdin, stdout, stderr = client.exec_command("date -u " + freebsd_timestamp)
-        
+        if not isinstance(freebsd_timestamp, str) or not freebsd_timestamp:
+            raise ValueError("freebsd_timestamp is not a valid string")
+        command = "date -u " + freebsd_timestamp
+        stdin, stdout, stderr = client.exec_command(command)
+
         output = stdout.read().decode("utf-8", errors="replace")
         error = stderr.read().decode("utf-8", errors="replace")
-        
-        if output:
-            print(output)
+
         if error:
-            print(error)
+            print(f"Error from remote time sync execution: {error}")
     except Exception as e:
         print(f"SSH Connection failed: {e}")
     finally:

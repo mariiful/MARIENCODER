@@ -19,24 +19,10 @@ SYSTEM:
   
   COLOREDLOGS:
     level: 'INFO'
-    fmt: '%(asctime)s %(levelname)s %(message)s'
+    fmt: '%(asctime)s %(levelname)s ► %(message)s'
     field_styles:
       asctime:
         color: 'cyan'
       levelname:
         color: 'black'
-        light: true
-    level_styles:
-      debug:
-        color: 'blue'
-      info:
-        color: 'green'
-      warning:
-        color: 'yellow'
-      error:
-        color: 'red'
-        bold: true
-      critical:
-        color: 'red'
-        bold: true
-        background: 'white'
+        style: 'bright'

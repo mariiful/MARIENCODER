@@ -14,9 +14,6 @@ let pythonPrefix;
   } else {
     pythonPrefix = 'python3'
   }
-
-
-
 exec.execSync(`${pythonPrefix} ./fetch_remote_config.py`, { stdio: 'inherit' });
 
 import { searchByObs } from './LFRecord.js';
@@ -29,6 +26,8 @@ import { generateCurrent } from "./generators/current.js";
 const API_KEY = config.API.WEATHER_API_KEY;
 const units = config.API.UNITS;
 const DATA_INTERVAL_MINUTES = config.SYSTEM.DATA_MINUTE_INTERVAL;
+const NTP_MINUTE_INTERVAL = config.SYSTEM.NTP_MINUTE_INTERVAL;
+const RADAR_MINUTE_INTERVAL = config.SYSTEM.RADAR_MINUTE_INTERVAL;
 
 const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
 const obs_interest_list = interest_list.obsStation;
@@ -42,7 +41,6 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
-
 
 async function fetchDaily(lat, lon) {
   const url = "https://api.weather.com/v3/wx/forecast/daily/7day";
@@ -59,10 +57,6 @@ async function fetchDaily(lat, lon) {
   return response.data;
 }
 
-
-
-
-
 async function fetchDaypart(lat, lon) {
   const url = "https://api.weather.com/v3/wx/forecast/daily/7day";
 
@@ -77,8 +71,6 @@ async function fetchDaypart(lat, lon) {
   const response = await axios.get(url, { params });
   return response.data;
 }
-
-
 
 async function fetchHourly(lat, lon) {
   const url = "https://api.weather.com/v3/wx/forecast/hourly/2day";
@@ -187,31 +179,50 @@ async function provisionIntelliStar(job) {
   }
 }
 
-async function mainLoop() {
-
-}
-
-function countdown(seconds) {
+function countdown(dataSeconds, ntpSeconds, radarSeconds) {
   return new Promise((resolve) => {
-    let remaining = seconds;
+    let dataRemaining = dataSeconds;
+    let ntpRemaining = ntpSeconds;
+    let radarRemaining = radarSeconds;
     
     const interval = setInterval(() => {
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      process.stdout.write(`\rNext update in: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} `);
+      const dataMins = Math.floor(dataRemaining / 60);
+      const dataSecs = dataRemaining % 60;
+      const ntpMins = Math.floor(ntpRemaining / 60);
+      const ntpSecs = ntpRemaining % 60;
+      const radarMins = Math.floor(radarRemaining / 60);
+      const radarSecs = radarRemaining % 60;
       
-      remaining--;
+      process.stdout.write('\r\x1B[K');
+      process.stdout.write(`Next data update:  ${dataMins.toString().padStart(2, '0')}:${dataSecs.toString().padStart(2, '0')}\n`);
+      process.stdout.write('\x1B[K');
+      process.stdout.write(`Next time sync:    ${ntpMins.toString().padStart(2, '0')}:${ntpSecs.toString().padStart(2, '0')}\n`);
+      process.stdout.write('\x1B[K');
+      process.stdout.write(`Next radar update: ${radarMins.toString().padStart(2, '0')}:${radarSecs.toString().padStart(2, '0')}`);
+
+      process.stdout.write('\x1B[2A');
       
-      if (remaining < 0) {
+      dataRemaining--;
+      ntpRemaining--;
+      radarRemaining--;
+      
+      if (dataRemaining < 0) {
         clearInterval(interval);
-        process.stdout.write('\r                              \r');
-        resolve();
+
+        process.stdout.write('\r\x1B[K\n\x1B[K\n\x1B[K\r');
+        resolve({
+          ntpRemaining: ntpRemaining + 1,
+          radarRemaining: radarRemaining + 1
+        });
       }
     }, 1000);
   });
 }
 
 async function runLoop() {
+  let ntpCountdown = NTP_MINUTE_INTERVAL * 60;
+  let radarCountdown = RADAR_MINUTE_INTERVAL * 60;
+  
   while (true) {
     console.log("Starting generation for forecast products...");
     try {
@@ -220,16 +231,27 @@ async function runLoop() {
       console.error(`Error during aggregation:`, err);
     }
 
-    await provisionIntelliStar();
+    await provisionIntelliStar("data");
     console.log("All products generated and provisioned.");
-    console.log(`\nWaiting ${DATA_INTERVAL_MINUTES} minutes until next update...`);
-    await countdown(DATA_INTERVAL_MINUTES * 60);
-
-    setInterval(() => {
+    
+    if (ntpCountdown <= 0) {
       console.log("Starting NTP time synchronization...");
-      provisionIntelliStar("timesync");
+      await provisionIntelliStar("timesync");
       console.log("NTP time synchronization completed.");
-    }, config.SYSTEM.NTP_MINUTE_INTERVAL * 60 * 1000);
+      ntpCountdown = NTP_MINUTE_INTERVAL * 60;
+    }
+    
+    if (radarCountdown <= 0) {
+      console.log("Starting radar data provisioning...");
+      await provisionIntelliStar("radar");
+      console.log("Radar data provisioning completed.");
+      radarCountdown = RADAR_MINUTE_INTERVAL * 60;
+    }
+    
+    console.log(`\nWaiting until next update...`);
+    const remaining = await countdown(DATA_INTERVAL_MINUTES * 60, ntpCountdown, radarCountdown);
+    ntpCountdown = remaining.ntpRemaining;
+    radarCountdown = remaining.radarRemaining;
   }
 }
 

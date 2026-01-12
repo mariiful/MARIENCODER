@@ -1,4 +1,6 @@
 output/
 node_modules/
 remote/
+.temp/
+radar/
 config.yaml

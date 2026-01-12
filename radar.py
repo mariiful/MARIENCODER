@@ -26,7 +26,9 @@ radarType = "Radar-US"
 OUTPUT_DIR = "radar/"
 
 l = logging.getLogger(__name__)
-coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
+coloredlogs_config = config['SYSTEM']['COLOREDLOGS'].copy()
+coloredlogs_config['logger'] = l
+coloredlogs.install(**coloredlogs_config)
 
 upperLeftX,upperLeftY,lowerRightX,lowerRightY = 0,0,0,0
 xStart,xEnd,yStart,yEnd = 0,0,0,0

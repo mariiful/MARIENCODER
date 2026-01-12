@@ -11,13 +11,11 @@ config = yaml.safe_load(open("config.yaml"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
+coloredlogs_config = config['SYSTEM']['COLOREDLOGS'].copy()
+coloredlogs_config['logger'] = logger
+coloredlogs.install(**coloredlogs_config)
 
-STUPID_FUCKING_TWC_CORBA_ERROR = (
-    "Exception exceptions.TypeError: '\'NoneType\' object is not callable" 
-    " in <bound method _objref_ProxyPushConsumer.__del__ of <twccommon.corba._ProxyPushConsumer object at"
-)
-
+STUPID_FUCKING_TWC_CORBA_ERROR = "twccommon.corba.CosEventChannelAdmin._objref_ProxyPushConsumer instance"
 
 data_root = os.path.join(os.path.dirname(__file__), "output")
 
@@ -46,7 +44,6 @@ def runomni_that_white_boy(command: str):
 
     if error and not STUPID_FUCKING_TWC_CORBA_ERROR in error:
         logger.error(f"Error from remote SSH execution: {error}")
-    
     
     client.close()
 
@@ -83,8 +80,9 @@ def sync_that_funky_time_white_boy():
         output = stdout.read().decode("utf-8", errors="replace")
         error = stderr.read().decode("utf-8", errors="replace")
 
-        if error:
+        if error and not STUPID_FUCKING_TWC_CORBA_ERROR in error:
             logger.error(f"Error from remote time sync execution: {error}")
+
     except Exception as e:
         logger.error(f"SSH Connection failed: {e}")
     finally:

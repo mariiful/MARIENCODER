@@ -10,7 +10,9 @@ config = yaml.safe_load(open("config.yaml"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-coloredlogs.install(config['SYSTEM']['COLOREDLOGS_JSON'])
+coloredlogs_config = config['SYSTEM']['COLOREDLOGS'].copy()
+coloredlogs_config['logger'] = logger
+coloredlogs.install(**coloredlogs_config)
 
 remote_root = "./remote"
 remote_config = "/home/dgadmin/config/current/config.py"

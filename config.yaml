@@ -17,18 +17,26 @@ SYSTEM:
     - "pool.ntp.org"
     - "time.google.com"
   
-  COLOREDLOGS_JSON: |
-    level='INFO',
-    logger=logger,
-    fmt='%(asctime)s %(levelname)s %(programname)s %(message)s',
-    field_styles={
-        'asctime': {'color': 'cyan'},
-        'levelname': {'color': 'black', 'light': True}
-    },
-    level_styles={
-        'debug': {'color': 'blue'},
-        'info': {'color': 'green'},
-        'warning': {'color': 'yellow'},
-        'error': {'color': 'red', 'bold': True},
-        'critical': {'color': 'red', 'bold': True, 'background': 'white'}
-    }
+  COLOREDLOGS:
+    level: 'INFO'
+    fmt: '%(asctime)s %(levelname)s %(message)s'
+    field_styles:
+      asctime:
+        color: 'cyan'
+      levelname:
+        color: 'black'
+        light: true
+    level_styles:
+      debug:
+        color: 'blue'
+      info:
+        color: 'green'
+      warning:
+        color: 'yellow'
+      error:
+        color: 'red'
+        bold: true
+      critical:
+        color: 'red'
+        bold: true
+        background: 'white'

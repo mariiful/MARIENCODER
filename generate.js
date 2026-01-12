@@ -109,9 +109,6 @@ async function aggregate() {
   let daypart = '';
 
   for (const obs of obs_interest_list) {
-    await obs_interest_list
-    await coop_interest_list
-    // curtent conditins
     try {
       const locData = await searchByObs(obs);
 
@@ -178,12 +175,11 @@ async function provisionIntelliStar(job) {
 
 function countdown(dataSeconds, ntpSeconds, radarSeconds) {
   return new Promise((resolve) => {
-
-    if (dataSeconds <= 0 && ntpSeconds <= 0 && radarSeconds <= 0) {
+    if (dataSeconds <= 0 || ntpSeconds <= 0 || radarSeconds <= 0) {
       resolve({
-        dataRemaining: 0,
-        ntpRemaining: 0,
-        radarRemaining: 0
+        dataRemaining: Math.max(0, dataSeconds),
+        ntpRemaining: Math.max(0, ntpSeconds),
+        radarRemaining: Math.max(0, radarSeconds)
       });
       return;
     }
@@ -218,9 +214,9 @@ function countdown(dataSeconds, ntpSeconds, radarSeconds) {
 
         process.stdout.write('\r\x1B[K\n\x1B[K\n\x1B[K\r');
         resolve({
-          dataRemaining: Math.max(1, dataRemaining + 1),
-          ntpRemaining: Math.max(1, ntpRemaining + 1),
-          radarRemaining: Math.max(1, radarRemaining + 1)
+          dataRemaining: Math.max(0, dataRemaining),
+          ntpRemaining: Math.max(0, ntpRemaining),
+          radarRemaining: Math.max(0, radarRemaining)
         });
       }
     }, 1000);

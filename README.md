@@ -8,9 +8,6 @@ Much like GIT, the name MARI can mean many things, mood permitting:
  - LUCKY CHARM DATA ENCODER. If your name is Jaidenism. No further comment.
  - MALICIOUS ALCOHOLIC weatherRANCH INFORMATION ENCODER. If data suddenly breaks on your IntelliStar and you spend the last six hours trying to see what's wrong only to find out that it's this one line of code that only shows up under certain weather that breaks the whole system because the IntelliStar is old and shit and wont accept anything modern.
 
-tyy rai for writing the readme and adding like 50% of the features !!!!!
-You're welcome, Mari.
-
  # Installation
 MARI ENCODER uses Node.JS and Python. A relatively new version of Node is recommended for ESM module imports. For Python, Paramiko version 3.5.1 or lower is REQUIRED because newer versions will not negotiate with newer SSH algorithms used on the IntelliStar's FreeBSD installation. Please run the following installation commands in your downloaded directory:
 
@@ -25,6 +22,14 @@ Then, install dependencies for Python:
 Lastly, run the program:
 
 ``` npm start ```
+
+ # Bulletin Crawl
+MARI ENCODER leverages the setBulletin.pyc script in order to push bulletin crawls to be displayed. First, you will have to apply the default bulletin info:
+```runomni /twc/util/loadSCMTConfig.pyc /twc/util/defaultBulletinInfo.py```
+
+# Acknowledgements
+ - mari. making this application.
+ - rai. making this application more.
 
 # Contributing
 This program is still in development. Please make a pull request for any contributions you would like to add. K THX BYE!!!!!!!!!!

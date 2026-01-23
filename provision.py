@@ -32,16 +32,12 @@ def runomni_that_white_boy(command: str):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname=config['SFTP']['IP'], username=config['SFTP']['USERNAME'], password=config['SFTP']['PASSWORD'])
-    
-    full_command = f"su -l dgadmin -c '{command}'"
+    escaped_command = command.replace("'", "'\\''")
+    full_command = f"su -l dgadmin -c '{escaped_command}'"
     logger.info(f"Running: {full_command}")
-    
     stdin, stdout, stderr = client.exec_command(full_command)
-
     error = stderr.read().decode("utf-8", errors="replace")
-
     logger.info(f"Executed remote command: {full_command}")
-
     if error and not STUPID_FUCKING_TWC_CORBA_ERROR in error:
         logger.error(f"Error from remote SSH execution: {error}")
     
@@ -144,11 +140,19 @@ def sftp_upload(product: str):
     
     sftp.close()
     transport.close()
+
+def set_bulletin(ugc: str, pil: str, pilext: str, bulletinText: str, expirSec: str):
+    escaped_text = bulletinText.replace('"', '\\"')
     
+    cmd = f'runomni /twc/util/setBulletin.pyc --ugc {ugc} --pil {pil} --pilExt {pilext} --text "{escaped_text}" --dispExpir {expirSec} --expir {expirSec}'
+    runomni_that_white_boy(cmd)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--job', action='store', help="Run a specific job. Available jobs: data, timesync", default="data")
+    parser.add_argument('--job', action='store', help="Run a specific job. Available jobs: data, timesync, radar, bulletin", default="data")
+    parser.add_argument('--bulletinParams', action='store', help="Parameters for bulletin job in format UGC|PIL|PILEXT|TEXT|EXPIRSEC", default="")
     args = parser.parse_args()
     if args.job == "data":
         sftp_upload("text_data")
@@ -159,6 +163,17 @@ if __name__ == "__main__":
     if args.job == "all":
         sync_that_funky_time_white_boy()
         sftp_upload("all")
+    if args.job == "bulletin":
+        if args.bulletinParams:
+            params = args.bulletinParams.split("|")
+            if len(params) == 5:
+                set_bulletin(params[0], params[1], params[2], params[3], params[4])
+            else:
+                logger.error("Invalid bulletinParams format. Expected format: UGC|PIL|PILEXT|TEXT|EXPIRSEC")
+        else:
+            logger.error("No bulletinParams provided for bulletin job.")
+    if args.bulletinParams and args.job != "bulletin":
+        logger.error("bulletinParams provided but job is not set to bulletin or is none.")
     if args.job == None:
         logger.error("No job specified. Use --job to specify a job to run.")
         parser.print_help()

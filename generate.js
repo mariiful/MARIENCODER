@@ -30,8 +30,10 @@ const NTP_MINUTE_INTERVAL = config.SYSTEM.NTP_MINUTE_INTERVAL;
 const RADAR_MINUTE_INTERVAL = config.SYSTEM.RADAR_MINUTE_INTERVAL;
 
 const interest_list = JSON.parse(fs.readFileSync('./remote/interest_lists.json', 'utf8'));
+const codeConversion = JSON.parse(fs.readFileSync('code-conversion.json', 'utf8'));
 const obs_interest_list = interest_list.obsStation;
 const coop_interest_list = interest_list.coopId;
+const county_interest_list = interest_list.county;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,6 +42,24 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
+
+function parsePILCodes(sameCode) {
+  const mapping = codeConversion['codeToIStarPIL'];
+  const result = mapping[sameCode];
+  if (Array.isArray(result) && result.length > 0) {
+    return result[0];
+  }
+  return 'UNKNOWN';
+}
+
+function capCanadaToUSSAME(eventType) {
+  const mapping = codeConversion['cap_event-same_event'];
+  const result = mapping[eventType];
+  if (Array.isArray(result) && result.length >= 2) {
+    return { same: result[0], pilExt: result[1] };
+  }
+  return { same: eventType, pilExt: '001' };
 }
 
 async function fetchDaily(lat, lon) {
@@ -85,6 +105,39 @@ async function fetchHourly(lat, lon) {
 
   const response = await axios.get(url, { params });
   return response.data;
+}
+
+async function fetchAlertHeadlines(lat, lon) {
+  const url = "https://api.weather.com/v3/alerts/headlines";
+
+  const params = {
+    geocode: `${lat},${lon}`,
+    format: "json",
+    language: "en-US",
+    apiKey: API_KEY
+  };
+
+  const response = await axios.get(url, { params });
+  return response.data;
+}
+
+async function fetchAlertDetails(detailKey) {
+  const url = "https://api.weather.com/v3/alerts/detail";
+
+  const params = {
+    alertId: detailKey,
+    format: "json",
+    language: "en-US",
+    apiKey: API_KEY
+  };
+
+  try {
+    const response = await axios.get(url, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching alert details:", error.message);
+    return null;
+  }
 }
 
 async function fetchCurrent(lat, lon) {
@@ -149,9 +202,67 @@ async function aggregate() {
       daily += dailyPy + '\n';
       daypart += daypartPy + '\n';
       hourly += hourlyPy + '\n';
-
     } catch (err) {
       console.error(`Error generating forecasts for ${coopid}:`, err.message);
+    }
+  }
+  for (const county of county_interest_list) {
+    const primObs = obs_interest_list[0];
+    const locData = await searchByObs(primObs);
+    const lat = locData.lat;
+    const lon = locData.long;
+    
+    try {
+      let alertHeadlines = await fetchAlertHeadlines(lat, lon);
+      if (alertHeadlines.alerts && alertHeadlines.alerts.length > 0) {
+        const detailKey = alertHeadlines.alerts[0].detailKey;
+        console.log(`Generating bulletin against assumed primary obs station ${primObs} (${lat},${lon}) for county ${county} via ${detailKey}`);
+        const details = await fetchAlertDetails(detailKey);
+        if (!details || !details.alertDetail || !details.alertDetail.texts || details.alertDetail.texts.length === 0) {
+          console.log(`No alert details or texts found for ${detailKey}`);
+          continue;
+        }
+        
+        let alertExpirSec = 21600;
+        if (alertHeadlines.alerts[0].expireTimeUtc) {
+          alertExpirSec = alertHeadlines.alerts[0].expireTimeUtc - Math.floor(Date.now() / 1000);
+        } else if (alertHeadlines.alerts[0].expireTimeLocal) {
+          const expireDate = new Date(alertHeadlines.alerts[0].expireTimeLocal);
+          alertExpirSec = Math.floor((expireDate.getTime() - Date.now()) / 1000);
+        }
+        alertExpirSec = Math.max(60, alertExpirSec);
+        
+        const texts = details.alertDetail.texts[0];
+        const description = texts.description || "";
+        const detailText = description.replace(/\s+/g, ' ').trim();
+        const headlineText = alertHeadlines.alerts[0].headlineText || "";
+        const officeName = alertHeadlines.alerts[0].officeName || "";
+        const a_an = headlineText.length > 0 && 'aeiouAEIOU'.includes(headlineText[0]) ? "an" : "a";
+        const bulletinText = `The ${officeName} has issued ${a_an} ${headlineText} ### ${detailText}`;
+        
+        if (alertHeadlines.alerts[0].countryCode == "US") {
+          console.log("This alert is American.")
+          const same = alertHeadlines.alerts[0].productIdentifier
+          const pilCode = parsePILCodes(same);
+          const load = `${county}|${same}|${pilCode}|${bulletinText}|${alertExpirSec}`
+          await provisionIntelliStar("bulletin", load);
+          return;
+        } else if (alertHeadlines.alerts[0].countryCode == "CA") {
+          console.log("This alert is Canadian.")
+          const eventType = alertHeadlines.alerts[0].phenomena;
+          const { same, pilExt } = capCanadaToUSSAME(eventType || "");
+          const load = `${county}|${same}|${pilExt}|${bulletinText}|${alertExpirSec}`
+          await provisionIntelliStar("bulletin", load);
+          return;
+        } else {
+          console.log("This alert is neither American nor Canadian. I'm out.")
+          return;
+        }
+      } else {
+        console.log(`No alerts for county ${county}`);
+      }
+    } catch (err) {
+      console.error(`Error generating bulletin for county ${county}:`, err.message);
     }
   }
 
@@ -163,10 +274,14 @@ async function aggregate() {
   console.log('All products written to output folder.');
 }
 
-async function provisionIntelliStar(job) {
+async function provisionIntelliStar(job, bulletinParams="") {
   try {
     console.log("Starting provisioning to IntelliStar...");
-    exec.execSync(`${pythonPrefix} provision.py --job ${job}`, { stdio: 'inherit' });
+    if (job === "bulletin" && bulletinParams) {
+      exec.execSync(`${pythonPrefix} provision.py --job bulletin --bulletinParams "${bulletinParams}"`, { stdio: 'inherit' });
+    } else {
+      exec.execSync(`${pythonPrefix} provision.py --job ${job}`, { stdio: 'inherit' });
+    }
     console.log("Provisioning completed successfully.");
   } catch (error) {
     console.error("Provisioning failed:", error);
@@ -227,8 +342,7 @@ async function runLoop() {
   let ntpCountdown = NTP_MINUTE_INTERVAL * 60;
   let radarCountdown = RADAR_MINUTE_INTERVAL * 60;
   let dataCountdown = DATA_MINUTE_INTERVAL * 60;
-  
-  // Run all jobs once at startup
+
   console.log("Starting initial generation for all forecast products...");
   try {
     await aggregate();

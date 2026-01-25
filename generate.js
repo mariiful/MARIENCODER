@@ -246,17 +246,14 @@ async function aggregate() {
           const pilCode = parsePILCodes(same);
           const load = `${county}|${same}|${pilCode}|${bulletinText}|${alertExpirSec}`
           await provisionIntelliStar("bulletin", load);
-          return;
         } else if (alertHeadlines.alerts[0].countryCode == "CA") {
           console.log("This alert is Canadian.")
           const eventType = alertHeadlines.alerts[0].phenomena;
           const { same, pilExt } = capCanadaToUSSAME(eventType || "");
           const load = `${county}|${same}|${pilExt}|${bulletinText}|${alertExpirSec}`
           await provisionIntelliStar("bulletin", load);
-          return;
         } else {
-          console.log("This alert is neither American nor Canadian. I'm out.")
-          return;
+          console.log("This alert is neither American nor Canadian. Skipping.")
         }
       } else {
         console.log(`No alerts for county ${county}`);
@@ -266,10 +263,10 @@ async function aggregate() {
     }
   }
 
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'current.py'), current);
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'daily.py'), daily);
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'daypart.py'), daypart);
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'hourly.py'), hourly);
+  await fs.promises.writeFile(path.join(OUTPUT_DIR, 'current.py'), current);
+  await fs.promises.writeFile(path.join(OUTPUT_DIR, 'daily.py'), daily);
+  await fs.promises.writeFile(path.join(OUTPUT_DIR, 'daypart.py'), daypart);
+  await fs.promises.writeFile(path.join(OUTPUT_DIR, 'hourly.py'), hourly);
 
   console.log('All products written to output folder.');
 }

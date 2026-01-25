@@ -30,21 +30,24 @@ areaList = wxdata.getUGCInterestList('${input.county}', 'county')
 `
 
 let data = `
-b = twc.Data()
-b.skyCondition = ${input.iconCodeExtend}
-b.temp = ${input.temperature}
-b.humidity = ${input.relativeHumidity}
-b.feelsLike = ${input.temperatureFeelsLike}
-b.dewpoint = ${input.temperatureDewPoint}
-b.altimeter = ${input.pressureAltimeter}
-b.visibility = ${input.visibility}
-b.windDirection = ${windMapping[input.windDirectionCardinal] || 0}
-b.windSpeed = ${input.windSpeed}
-b.gusts = ${input.windGust || 'None'}
-b.windChill = ${input.temperatureWindChill || 'None'}
-b.pressureTendency = 2
+d = twc.Data()
+d.skyCondition = ${input.iconCodeExtend}
+d.temp = ${input.temperature}
+d.humidity = ${input.relativeHumidity}
+d.feelsLikeIndex = ${input.temperatureFeelsLike}
+d.heatIndex = ${input.temperatureHeatIndex || 'None'}
+d.uvIndex = ${input.uvIndex}
+d.dewpoint = ${input.temperatureDewPoint}
+d.altimeter = ${input.pressureAltimeter}
+d.visibility = ${input.visibility}
+d.windDirection = ${windMapping[input.windDirectionCardinal] || 0}
+d.windSpeed = ${input.windSpeed}
+d.gusts = ${input.windGust || 'None'}
+d.windChill = ${input.temperatureWindChill || 'None'}
+d.pressure = ${input.pressureMeanSeaLevel}
+d.pressureTendency = 2
 
-wxdata.setData('${input.location}', 'obs', b, ${expiration})
+wxdata.setData('${input.location}', 'obs', d, ${expiration})
 twccommon.Log.info("MARI ENCODER - Current Conditions data set for ${input.location}")
 `;
     return header + data;
